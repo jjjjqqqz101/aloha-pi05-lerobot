@@ -65,19 +65,19 @@ to large-model closed-loop manipulation on real robots.
 ## System Overview
 
 ```mermaid
-%%{init: {"theme": "base", "themeVariables": {"fontSize": "20px", "fontFamily": "Inter, ui-sans-serif, system-ui", "primaryTextColor": "#102033", "lineColor": "#6B7280"}, "flowchart": {"nodeSpacing": 70, "rankSpacing": 90, "curve": "basis"}}}%%
-flowchart TB
-    Demo["AlohaMini Teleoperation<br/><b>human demonstrations + task prompts</b>"]
-    Runtime["AlohaPro / Orin Runtime<br/><b>motors + cameras + watchdog + safety</b>"]
-    Dataset["LeRobot Dataset Engine<br/><b>record, visualize, clean, merge, stats</b>"]
-    Training["A100 Training Factory<br/><b>Pi0.5 fine-tuning + checkpoint export</b>"]
-    Inference["4090 Remote Policy Runtime<br/><b>CUDA policy_server + action chunks</b>"]
+%%{init: {"theme": "base", "themeVariables": {"fontSize": "16px", "fontFamily": "Inter, ui-sans-serif, system-ui", "primaryTextColor": "#102033", "lineColor": "#6B7280"}, "flowchart": {"nodeSpacing": 38, "rankSpacing": 56, "curve": "basis"}}}%%
+flowchart LR
+    Demo["AlohaMini<br/><b>Teleoperation</b>"]
+    Runtime["AlohaPro / Orin<br/><b>Robot Runtime</b>"]
+    Dataset["LeRobot<br/><b>Dataset Engine</b>"]
+    Training["A100<br/><b>Pi0.5 Training</b>"]
+    Inference["4090<br/><b>Remote Inference</b>"]
 
-    Demo == "leader actions" ==> Runtime
+    Demo == "teleop" ==> Runtime
     Runtime == "episodes" ==> Dataset
     Dataset == "curated data" ==> Training
-    Training == "pretrained_model" ==> Inference
-    Inference == "closed-loop actions" ==> Runtime
+    Training == "model" ==> Inference
+    Inference == "actions" ==> Runtime
 
     classDef demo fill:#E8F3FF,stroke:#2684FF,stroke-width:3px,color:#0B2545;
     classDef runtime fill:#E9FBF8,stroke:#00A3A3,stroke-width:3px,color:#063B3B;
