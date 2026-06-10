@@ -66,15 +66,80 @@ to large-model closed-loop manipulation on real robots.
 
 ```mermaid
 flowchart LR
-    Mini["AlohaMini leader arms"] --> Orin["AlohaPro / Orin robot host"]
-    Orin --> Dataset["LeRobot-format dataset"]
-    Dataset --> Clean["visualize / clean / merge"]
-    Clean --> A100["A100 Pi0.5 training"]
-    A100 --> Model["export pretrained_model"]
-    Model --> Server["4090 policy_server"]
-    Server --> Client["Orin robot_client"]
-    Client --> Orin
+    %% Figure 1: Distributed real-robot learning stack.
+
+    subgraph H["Human Demonstration Interface"]
+        Leader["AlohaMini<br/>bimanual leader arms"]
+        Task["Task prompt<br/>language instruction"]
+    end
+
+    subgraph R["Orin Real-Robot Runtime"]
+        Host["AlohaPro robot host<br/>motors, lift, cameras"]
+        Cameras["Multi-view observations<br/>chest + left wrist + right wrist"]
+        Safety["Safety layer<br/>watchdog, limits, stale-action rejection"]
+        Client["Orin robot_client<br/>observation encoder + action buffer"]
+    end
+
+    subgraph D["LeRobot Dataset Engine"]
+        Recorder["Synchronized recorder<br/>state + action + video + task"]
+        Dataset["LeRobot dataset<br/>episodes, metadata, stats"]
+        Cleaner["Curation pipeline<br/>visualize, clean, merge, recompute stats"]
+    end
+
+    subgraph T["A100 Training Factory"]
+        Trainer["Pi0.5 fine-tuning<br/>bf16 + gradient checkpointing"]
+        Export["pretrained_model export<br/>config + weights + processors"]
+    end
+
+    subgraph P["4090 Remote Policy Runtime"]
+        Server["policy_server<br/>Pi0.5 on CUDA"]
+        Chunker["Action chunk scheduler<br/>temporal aggregation"]
+    end
+
+    Leader -- "teleop actions" --> Recorder
+    Task -- "task text" --> Recorder
+    Host -- "state + camera frames" --> Cameras
+    Cameras -- "observations" --> Recorder
+    Recorder -- "raw episodes" --> Dataset
+    Dataset -- "bad episode removal" --> Cleaner
+    Cleaner -- "curated dataset" --> Trainer
+    Trainer -- "checkpoints" --> Export
+    Export -- "model sync" --> Server
+
+    Host -- "live observations" --> Client
+    Client -- "gRPC observations" --> Server
+    Server -- "policy rollout" --> Chunker
+    Chunker -- "action chunks" --> Client
+    Client -- "validated action" --> Safety
+    Safety -- "safe command" --> Host
+
+    classDef human fill:#E8F3FF,stroke:#2684FF,stroke-width:1.5px,color:#0B2545;
+    classDef robot fill:#E9FBF8,stroke:#00A3A3,stroke-width:1.5px,color:#063B3B;
+    classDef data fill:#FFF7E6,stroke:#FFB020,stroke-width:1.5px,color:#4A2A00;
+    classDef train fill:#F4ECFF,stroke:#7B61FF,stroke-width:1.5px,color:#26114D;
+    classDef policy fill:#FFEAF6,stroke:#D946EF,stroke-width:1.5px,color:#4A044E;
+    classDef safety fill:#ECFDF3,stroke:#12B76A,stroke-width:2px,color:#052E16;
+
+    class Leader,Task human;
+    class Host,Cameras,Client robot;
+    class Recorder,Dataset,Cleaner data;
+    class Trainer,Export train;
+    class Server,Chunker policy;
+    class Safety safety;
 ```
+
+**Figure 1.** Aloha Pi0.5 LeRobot is organized as a split-stack real-robot
+learning system: demonstrations become curated LeRobot datasets, A100 training
+exports a Pi0.5 policy, and the 4090 serves action chunks back to an Orin robot
+runtime that keeps hardware IO and safety close to the robot.
+
+| Flow | Meaning |
+| --- | --- |
+| Blue / teal modules | Real-time teleoperation, camera capture, robot IO, and Orin runtime. |
+| Amber modules | LeRobot dataset recording, visualization, cleaning, merging, and stats. |
+| Violet modules | A100 Pi0.5 training and checkpoint export. |
+| Magenta modules | 4090 remote policy serving and action-chunk scheduling. |
+| Green module | Safety gate before commands reach the real robot. |
 
 The core idea is to split the system by machine capability:
 
