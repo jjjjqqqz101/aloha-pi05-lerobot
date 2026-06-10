@@ -1,0 +1,4 @@
+# Format: dataset_name: bad episode indices
+aloha_pen_01: 1 3 4
+aloha_pen_02: 0 2
+aloha_pen_03:

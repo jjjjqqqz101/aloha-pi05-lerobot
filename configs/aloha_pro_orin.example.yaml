@@ -1,0 +1,21 @@
+robot:
+  id: aloha_pro_orin
+  type: lekiwi_client
+  model: alohamini2
+  fps: 30
+
+network:
+  host_bind: 0.0.0.0
+  zmq_command_port: 5555
+  zmq_observation_port: 5556
+  watchdog_timeout_ms: 1500
+
+cameras:
+  chest: /dev/cam_chest
+  wrist_left: /dev/cam_wrist_left
+  wrist_right: /dev/cam_wrist_right
+
+safety:
+  dry_run: true
+  clamp_actions: true
+  disable_torque_on_disconnect: true

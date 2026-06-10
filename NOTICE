@@ -1,0 +1,10 @@
+Aloha Pi0.5 LeRobot
+
+This project contains original integration work for Aloha-style real-robot
+data collection, Pi0.5 training, and remote inference.
+
+The project is designed to interoperate with Hugging Face LeRobot:
+https://github.com/huggingface/lerobot
+
+LeRobot is licensed under the Apache License, Version 2.0. Source files adapted
+from LeRobot retain the upstream copyright and license header.

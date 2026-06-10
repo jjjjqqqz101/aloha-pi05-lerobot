@@ -1,0 +1,29 @@
+project:
+  job_name: aloha_pi05_example
+  output_dir: /path/to/outputs/aloha_pi05_example
+
+dataset:
+  repo_id: local/aloha_clean_dataset
+  root: /path/to/datasets/aloha_clean_dataset
+  video_backend: pyav
+  use_imagenet_stats: false
+
+policy:
+  type: pi05
+  pretrained_path: /path/to/checkpoints/pi05_base
+  dtype: bfloat16
+  gradient_checkpointing: true
+  compile_model: false
+  freeze_vision_encoder: false
+  train_expert_only: false
+  normalization_mapping: "{ACTION: MEAN_STD, STATE: MEAN_STD, VISUAL: IDENTITY}"
+
+train:
+  gpus: "0"
+  steps: 50000
+  batch_size: 16
+  save_freq: 5000
+  log_freq: 50
+  mixed_precision: bf16
+  wandb_mode: offline
+  wandb_project: aloha_pi05

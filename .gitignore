@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+venv/
+build/
+dist/
+*.egg-info/
+
+# Local config and secrets
+.env
+.env.*
+*.local.yaml
+*.local.yml
+secrets/
+id_*
+*.pem
+*.key
+
+# Robot data, model weights, and logs
+data/
+datasets/
+videos/
+models/
+checkpoints/
+outputs/
+logs/
+wandb/
+*.safetensors
+*.ckpt
+*.pt
+*.pth
+*.onnx
+*.parquet
+*.mp4
+*.avi
+*.mov
+*.tar
+*.tar.gz
+*.zip
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

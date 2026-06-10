@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aloha-lerobot"
+version = "0.1.0"
+description = "Aloha real-robot data collection, Pi0.5 training, and remote inference helpers for LeRobot."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "Apache-2.0"}
+authors = [
+  {name = "jqz"}
+]
+dependencies = [
+  "numpy>=1.24",
+  "pyyaml>=6.0",
+  "pyzmq>=25.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "ruff>=0.5",
+]
+robot = [
+  "opencv-python>=4.8",
+  "grpcio>=1.60",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"

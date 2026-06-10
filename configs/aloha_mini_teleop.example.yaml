@@ -1,0 +1,12 @@
+leader:
+  id: aloha_mini_leader
+  arm_profile: am-arm-6dof
+  left_port: /dev/serial/by-id/usb-1a86_USB_Single_Serial_LEFT_LEADER-if00
+  right_port: /dev/serial/by-id/usb-1a86_USB_Single_Serial_RIGHT_LEADER-if00
+  use_degrees: true
+
+bridge:
+  mode: local
+  bind: tcp://*:5557
+  rate_hz: 30
+  dry_run: true
