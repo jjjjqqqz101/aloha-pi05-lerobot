@@ -65,73 +65,99 @@ to large-model closed-loop manipulation on real robots.
 ## System Overview
 
 ```mermaid
+%%{init: {"theme": "base", "themeVariables": {"fontSize": "20px", "fontFamily": "Inter, ui-sans-serif, system-ui", "primaryTextColor": "#102033", "lineColor": "#6B7280"}, "flowchart": {"nodeSpacing": 70, "rankSpacing": 90, "curve": "basis"}}}%%
+flowchart TB
+    Demo["AlohaMini Teleoperation<br/><b>human demonstrations + task prompts</b>"]
+    Runtime["AlohaPro / Orin Runtime<br/><b>motors + cameras + watchdog + safety</b>"]
+    Dataset["LeRobot Dataset Engine<br/><b>record, visualize, clean, merge, stats</b>"]
+    Training["A100 Training Factory<br/><b>Pi0.5 fine-tuning + checkpoint export</b>"]
+    Inference["4090 Remote Policy Runtime<br/><b>CUDA policy_server + action chunks</b>"]
+
+    Demo == "leader actions" ==> Runtime
+    Runtime == "episodes" ==> Dataset
+    Dataset == "curated data" ==> Training
+    Training == "pretrained_model" ==> Inference
+    Inference == "closed-loop actions" ==> Runtime
+
+    classDef demo fill:#E8F3FF,stroke:#2684FF,stroke-width:3px,color:#0B2545;
+    classDef runtime fill:#E9FBF8,stroke:#00A3A3,stroke-width:3px,color:#063B3B;
+    classDef dataset fill:#FFF7E6,stroke:#FFB020,stroke-width:3px,color:#4A2A00;
+    classDef training fill:#F4ECFF,stroke:#7B61FF,stroke-width:3px,color:#26114D;
+    classDef inference fill:#FFEAF6,stroke:#D946EF,stroke-width:3px,color:#4A044E;
+
+    class Demo demo;
+    class Runtime runtime;
+    class Dataset dataset;
+    class Training training;
+    class Inference inference;
+```
+
+**Figure 1a.** The high-level split-stack design. The system separates
+demonstration collection, dataset engineering, large-model training, remote
+inference, and real-time robot safety into machine-specialized modules.
+
+### Offline Data And Training Path
+
+```mermaid
+%%{init: {"theme": "base", "themeVariables": {"fontSize": "19px", "fontFamily": "Inter, ui-sans-serif, system-ui", "primaryTextColor": "#102033", "lineColor": "#7C5A00"}, "flowchart": {"nodeSpacing": 65, "rankSpacing": 80, "curve": "basis"}}}%%
 flowchart LR
-    %% Figure 1: Distributed real-robot learning stack.
+    Leader["AlohaMini<br/><b>bimanual leader arms</b>"]
+    Robot["AlohaPro / Orin<br/><b>state + action + cameras</b>"]
+    Record["Synchronized Recorder<br/><b>video + state + action + task</b>"]
+    Clean["Dataset Curation<br/><b>visualize, delete, merge</b>"]
+    Train["A100 Pi0.5 Training<br/><b>bf16 + gradient checkpointing</b>"]
+    Export["Checkpoint Export<br/><b>pretrained_model</b>"]
 
-    subgraph H["Human Demonstration Interface"]
-        Leader["AlohaMini<br/>bimanual leader arms"]
-        Task["Task prompt<br/>language instruction"]
-    end
+    Leader --> Robot
+    Robot --> Record
+    Record --> Clean
+    Clean --> Train
+    Train --> Export
 
-    subgraph R["Orin Real-Robot Runtime"]
-        Host["AlohaPro robot host<br/>motors, lift, cameras"]
-        Cameras["Multi-view observations<br/>chest + left wrist + right wrist"]
-        Safety["Safety layer<br/>watchdog, limits, stale-action rejection"]
-        Client["Orin robot_client<br/>observation encoder + action buffer"]
-    end
+    classDef human fill:#E8F3FF,stroke:#2684FF,stroke-width:3px,color:#0B2545;
+    classDef robot fill:#E9FBF8,stroke:#00A3A3,stroke-width:3px,color:#063B3B;
+    classDef data fill:#FFF7E6,stroke:#FFB020,stroke-width:3px,color:#4A2A00;
+    classDef train fill:#F4ECFF,stroke:#7B61FF,stroke-width:3px,color:#26114D;
 
-    subgraph D["LeRobot Dataset Engine"]
-        Recorder["Synchronized recorder<br/>state + action + video + task"]
-        Dataset["LeRobot dataset<br/>episodes, metadata, stats"]
-        Cleaner["Curation pipeline<br/>visualize, clean, merge, recompute stats"]
-    end
+    class Leader human;
+    class Robot robot;
+    class Record,Clean data;
+    class Train,Export train;
+```
 
-    subgraph T["A100 Training Factory"]
-        Trainer["Pi0.5 fine-tuning<br/>bf16 + gradient checkpointing"]
-        Export["pretrained_model export<br/>config + weights + processors"]
-    end
+**Figure 1b.** Offline path: human demonstrations become curated LeRobot-format
+datasets, then A100 training exports a deployable Pi0.5 policy directory.
 
-    subgraph P["4090 Remote Policy Runtime"]
-        Server["policy_server<br/>Pi0.5 on CUDA"]
-        Chunker["Action chunk scheduler<br/>temporal aggregation"]
-    end
+### Online Remote Inference Path
 
-    Leader -- "teleop actions" --> Recorder
-    Task -- "task text" --> Recorder
-    Host -- "state + camera frames" --> Cameras
-    Cameras -- "observations" --> Recorder
-    Recorder -- "raw episodes" --> Dataset
-    Dataset -- "bad episode removal" --> Cleaner
-    Cleaner -- "curated dataset" --> Trainer
-    Trainer -- "checkpoints" --> Export
-    Export -- "model sync" --> Server
+```mermaid
+%%{init: {"theme": "base", "themeVariables": {"fontSize": "19px", "fontFamily": "Inter, ui-sans-serif, system-ui", "primaryTextColor": "#102033", "lineColor": "#5B21B6"}, "flowchart": {"nodeSpacing": 70, "rankSpacing": 75, "curve": "basis"}}}%%
+flowchart LR
+    Host["Orin Robot Host<br/><b>camera capture + robot IO</b>"]
+    Client["Orin robot_client<br/><b>observation encoder + action buffer</b>"]
+    Server["4090 policy_server<br/><b>Pi0.5 inference on CUDA</b>"]
+    Chunk["Action Chunk Scheduler<br/><b>temporal aggregation</b>"]
+    Safety["Safety Gate<br/><b>limits + watchdog + stale rejection</b>"]
 
-    Host -- "live observations" --> Client
-    Client -- "gRPC observations" --> Server
-    Server -- "policy rollout" --> Chunker
-    Chunker -- "action chunks" --> Client
-    Client -- "validated action" --> Safety
-    Safety -- "safe command" --> Host
+    Host == "live observations" ==> Client
+    Client == "gRPC observations" ==> Server
+    Server == "policy rollout" ==> Chunk
+    Chunk == "action chunks" ==> Client
+    Client == "candidate action" ==> Safety
+    Safety == "safe command" ==> Host
 
-    classDef human fill:#E8F3FF,stroke:#2684FF,stroke-width:1.5px,color:#0B2545;
-    classDef robot fill:#E9FBF8,stroke:#00A3A3,stroke-width:1.5px,color:#063B3B;
-    classDef data fill:#FFF7E6,stroke:#FFB020,stroke-width:1.5px,color:#4A2A00;
-    classDef train fill:#F4ECFF,stroke:#7B61FF,stroke-width:1.5px,color:#26114D;
-    classDef policy fill:#FFEAF6,stroke:#D946EF,stroke-width:1.5px,color:#4A044E;
-    classDef safety fill:#ECFDF3,stroke:#12B76A,stroke-width:2px,color:#052E16;
+    classDef robot fill:#E9FBF8,stroke:#00A3A3,stroke-width:3px,color:#063B3B;
+    classDef policy fill:#FFEAF6,stroke:#D946EF,stroke-width:3px,color:#4A044E;
+    classDef safety fill:#ECFDF3,stroke:#12B76A,stroke-width:3px,color:#052E16;
 
-    class Leader,Task human;
-    class Host,Cameras,Client robot;
-    class Recorder,Dataset,Cleaner data;
-    class Trainer,Export train;
-    class Server,Chunker policy;
+    class Host,Client robot;
+    class Server,Chunk policy;
     class Safety safety;
 ```
 
-**Figure 1.** Aloha Pi0.5 LeRobot is organized as a split-stack real-robot
-learning system: demonstrations become curated LeRobot datasets, A100 training
-exports a Pi0.5 policy, and the 4090 serves action chunks back to an Orin robot
-runtime that keeps hardware IO and safety close to the robot.
+**Figure 1c.** Online path: Orin stays close to the robot hardware, while the
+4090 runs the large Pi0.5 policy and streams action chunks back into a safety
+gated closed loop.
 
 | Flow | Meaning |
 | --- | --- |
