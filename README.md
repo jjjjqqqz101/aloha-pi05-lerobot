@@ -1,6 +1,21 @@
+<div align="center">
+
 # Aloha Pi0.5 LeRobot
 
 ![Aloha Pi0.5 LeRobot cover](assets/aloha.png)
+
+[![Tests](https://github.com/jjjjqqqz101/aloha-pi05-lerobot/actions/workflows/tests.yml/badge.svg)](https://github.com/jjjjqqqz101/aloha-pi05-lerobot/actions/workflows/tests.yml)
+[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](pyproject.toml)
+[![License](https://img.shields.io/badge/License-Apache--2.0-2EA44F.svg)](LICENSE)
+[![LeRobot](https://img.shields.io/badge/Built%20on-LeRobot-FFB000)](https://github.com/huggingface/lerobot)
+[![Aloha](https://img.shields.io/badge/Real%20Robot-AlohaPro-00A3A3)](docs/hardware_setup.md)
+[![Pi0.5](https://img.shields.io/badge/Policy-Pi0.5-7B61FF)](docs/train_pi05_a100.md)
+[![Remote Inference](https://img.shields.io/badge/Remote%20Inference-4090%20%2B%20Orin-2F80ED)](docs/remote_inference_4090_orin.md)
+
+**A real-robot learning pipeline for AlohaMini teleoperation, LeRobot-format
+datasets, A100 Pi0.5 training, and 4090-to-Orin remote closed-loop inference.**
+
+</div>
 
 Hello everyone, welcome to jqz's aloha_pi model project.
 
@@ -9,6 +24,29 @@ project and Hugging Face [LeRobot](https://github.com/huggingface/lerobot).
 It adapts a general robot learning framework into a real Aloha manipulation
 pipeline for teleoperation, dataset collection, dataset cleaning, Pi0.5
 training, remote GPU inference, and closed-loop robot control.
+
+## Abstract
+
+We present an end-to-end real-robot learning system that adapts LeRobot from a
+general robot learning framework into a distributed Aloha manipulation stack.
+The system uses AlohaMini leader arms for bimanual teleoperation, collects
+multi-camera AlohaPro demonstrations in LeRobot format, cleans and merges
+real-robot episodes, trains Pi0.5 vision-language-action policies on an A100
+server, and deploys large checkpoints through a remote RTX 4090 inference
+server while the Orin robot host keeps low-level control and safety loops close
+to the hardware. The result is a practical bridge from demonstration collection
+to large-model closed-loop manipulation on real robots.
+
+## System Highlights
+
+| Highlight | What It Enables |
+| --- | --- |
+| AlohaMini-to-AlohaPro teleoperation | Collect bimanual real-robot demonstrations with leader arms and synchronized cameras. |
+| LeRobot dataset pipeline | Record, visualize, clean, delete bad episodes, merge datasets, and prepare training-ready data. |
+| A100 Pi0.5 training | Fine-tune large VLA policies with bf16, gradient checkpointing, and reproducible training templates. |
+| 4090 remote inference | Run large Pi0.5 checkpoints off-board when Orin cannot host the full policy. |
+| Orin closed-loop control | Keep camera capture, action validation, watchdogs, and robot IO on the real robot host. |
+| Public release hygiene | Share code, docs, and templates without leaking datasets, weights, IPs, SSH paths, or hardware serials. |
 
 ## What This Project Can Do
 
@@ -44,6 +82,28 @@ The core idea is to split the system by machine capability:
 - A100: heavy Pi0.5 training.
 - RTX 4090: remote inference server for large policies.
 - AlohaMini: human teleoperation interface for collecting demonstrations.
+
+## Workflow At A Glance
+
+| Stage | Machine | Main Entry Point | Output |
+| --- | --- | --- | --- |
+| Environment setup | Local / Orin / A100 / 4090 | `python -m pip install -e ".[dev]"` and editable LeRobot install | Reproducible Python workspace |
+| Teleoperation host | Orin | `python -m lerobot.robots.alohamini.lekiwi_host --arm_profile am-arm-6dof` | Robot host with cameras, state, and action IO |
+| Demonstration recording | Orin + AlohaMini | `python examples/alohamini/record_bi.py --dataset local/aloha_task_demo` | LeRobot-format episodes |
+| Dataset cleaning | Workstation / server | `bash scripts/clean_and_merge_dataset.sh` | Curated merged dataset |
+| Pi0.5 training | A100 | `bash scripts/train_pi05_a100.sh` | Trained checkpoints and `pretrained_model` export |
+| Policy serving | RTX 4090 | `bash scripts/start_4090_policy_server.sh` | Remote Pi0.5 `policy_server` |
+| Closed-loop inference | Orin + 4090 | `bash scripts/start_orin_robot_client.sh` | Observation-to-action remote control loop |
+
+## Quick Navigation
+
+- [Install Environment](#install-environment)
+- [Start Data Collection](#start-data-collection)
+- [Clean And Merge Datasets](#clean-and-merge-datasets)
+- [Start Pi05 Training On A100](#start-pi05-training-on-a100)
+- [Deploy Remote Inference On 4090](#deploy-remote-inference-on-4090)
+- [Run Inference And Closed-Loop Control](#run-inference-and-closed-loop-control)
+- [Safety Notes](#safety-notes)
 
 ## Repository Layout
 
